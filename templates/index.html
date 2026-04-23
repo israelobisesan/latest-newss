@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart News Feed</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      z-index: 100;
+    }
+    .navbar .logo {
+      font-weight: bold;
+      font-size: 18px;
+      color: #1877f2;
+    }
+    .navbar .search {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+    }
+    .navbar input {
+      width: 350px;
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      outline: none;
+    }
+    .navbar button {
+      margin-left: 8px;
+      padding: 6px 14px;
+      border: none;
+      border-radius: 20px;
+      background: #1877f2;
+      color: white;
+      cursor: pointer;
+    }
+    .navbar button:hover {
+      background: #145dbf;
+    }
+    .navbar .icons {
+      display: flex;
+      gap: 15px;
+    }
+    .navbar .icon {
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr 300px;
+      gap: 20px;
+      padding: 80px 20px 20px; /* top padding = navbar height + spacing */
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      overflow-y: auto;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+    }
+    .sidebar li {
+      padding: 10px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .sidebar li:hover {
+      background: #e4e6eb;
+    }
+
+    /* Feed */
+    .feed {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .post {
+      background: #fff;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .post h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .post p {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #444;
+    }
+    .post img {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .post a {
+      text-decoration: none;
+      color: #1877f2;
+      font-size: 14px;
+    }
+
+    /* Rightbar */
+    .rightbar {
+      overflow-y: auto;
+    }
+    .rightbar .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .rightbar h4 {
+      margin-top: 0;
+    }
+
+    /* Loading spinner */
+    .loading {
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Nav -->
+  <div class="navbar">
+    <div class="logo">🌐 Smart News</div>
+    <div class="search">
+      <input type="text" id="searchInput" placeholder="Search news..."/>
+      <button onclick="startNewSearch()">Search</button>
+    </div>
+  </div>
+
+  <!-- Page Layout -->
+  <div class="layout">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <ul>
+        <li onclick="startNewSearch('top')">Home</li>
+        <li onclick="startNewSearch('world')">World News</li>
+        <li onclick="startNewSearch('technology')">Technology</li>
+        <li onclick="startNewSearch('sports')">Sports</li>
+        <li onclick="startNewSearch('business')">Business</li>
+        <li onclick="startNewSearch('health')">Health</li>
+        <li onclick="startNewSearch('entertainment')">Entertainment</li>
+      </ul>
+    </div>
+
+    <!-- Feed -->
+    <div class="feed" id="newsFeed"></div>
+
+    <!-- Right Sidebar -->
+    <div class="rightbar">
+      <div class="card">
+        <img src="https://via.placeholder.com/280x100?text=Ad+Banner" alt="Ad Banner" style="width:100%; border-radius:8px;"/>
+      </div>
+      <div class="card">
+        <h4>Birthdays</h4>
+        <p>Mike Johnson has a birthday today 🎉</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let page = 1;
+    let currentQuery = "technology";
+    let loading = false;
+
+    async function fetchNews(query, reset = false) {
+      if (loading) return;
+      loading = true;
+
+      if (reset) {
+        document.getElementById("newsFeed").innerHTML = "";
+        page = 1;
+      }
+
+      const feed = document.getElementById("newsFeed");
+      const loader = document.createElement("div");
+      loader.className = "loading";
+      loader.innerText = "Loading...";
+      feed.appendChild(loader);
+
+      try {
+        const res = await fetch(`/api/news?q=${query}&page=${page}`);
+        const data = await res.json();
+
+        feed.removeChild(loader);
+
+        if (data.results && data.results.length > 0) {
+          data.results.forEach(article => {
+            const post = document.createElement("div");
+            post.className = "post";
+            post.innerHTML = `
+              <h3>${article.title || "No title"}</h3>
+              ${article.image_url ? `<img src="${article.image_url}" alt="news image"/>` : ""}
+              <p>${article.description || ""}</p>
+              <a href="${article.link}" target="_blank">Read more</a>
+            `;
+            feed.appendChild(post);
+          });
+          page++;
+        } else {
+          const endMsg = document.createElement("div");
+          endMsg.className = "loading";
+          endMsg.innerText = "No more news available.";
+          feed.appendChild(endMsg);
+        }
+      } catch (err) {
+        console.error(err);
+        feed.innerHTML += "<p>Error fetching news.</p>";
+      }
+
+      loading = false;
+    }
+
+    // Start a fresh search (resets page & clears feed)
+    function startNewSearch(query) {
+      currentQuery = query || document.getElementById("searchInput").value || "technology";
+      fetchNews(currentQuery, true);
+    }
+
+    // Infinite scroll listener
+    document.getElementById("newsFeed").addEventListener("scroll", function() {
+      if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+        fetchNews(currentQuery);
+      }
+    });
+
+    // Load default on startup
+    window.onload = () => fetchNews("technology", true);
+  </script>
+</body>
+</html>
